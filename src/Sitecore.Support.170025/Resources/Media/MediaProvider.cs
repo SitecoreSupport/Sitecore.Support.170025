@@ -86,19 +86,18 @@ namespace Sitecore.Support.Resources.Media
             });
             string @string = StringUtil.GetString(new string[]
             {
-        siteInfo.Scheme,
-        WebUtil.GetScheme()
+               siteInfo.Scheme,
+               WebUtil.GetScheme()
             });
-            int num = MainUtil.GetInt(siteInfo.Port, WebUtil.GetPort());
-            int port = WebUtil.GetPort();
-            int @int = MainUtil.GetInt(siteInfo.ExternalPort, num);
-            if (@int != num)
+				    int @int = MainUtil.GetInt(siteInfo.Port, WebUtil.GetPort());
+	          int port = WebUtil.GetPort();
+			      if (@int != port)
             {
                 if (options.AlwaysIncludeServerUrl)
                 {
                     result = ((@int == 80) ? string.Format("{0}://{1}", @string, WebUtil.GetHostName()) : string.Format("{0}://{1}:{2}", @string, WebUtil.GetHostName(), @int));
                 }
-                num = @int;
+	            @int = port;
             }
             if (!options.AlwaysIncludeServerUrl && siteInfo.Name.Equals(value, StringComparison.OrdinalIgnoreCase) && hostName.Equals(text, StringComparison.OrdinalIgnoreCase))
             {
@@ -110,14 +109,14 @@ namespace Sitecore.Support.Resources.Media
             }
             string scheme = WebUtil.GetScheme();
             StringComparison comparisonType = StringComparison.OrdinalIgnoreCase;
-            if (text.Equals(hostName, comparisonType) && num == port && @string.Equals(scheme, comparisonType))
+            if (text.Equals(hostName, comparisonType) && @int == port && @string.Equals(scheme, comparisonType))
             {
                 return result;
             }
             string text2 = @string + "://" + text;
-            if (num > 0 && num != 80)
+            if (@int > 0 && @int != 80)
             {
-                text2 = text2 + ":" + num;
+                text2 = text2 + ":" + @int;
             }
             return text2;
         }
