@@ -1,5 +1,8 @@
-﻿using Sitecore;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Sitecore;
+using Sitecore.Abstractions;
 using Sitecore.Data.Items;
+using Sitecore.DependencyInjection;
 using Sitecore.Diagnostics;
 using Sitecore.IO;
 using Sitecore.Links;
@@ -12,61 +15,69 @@ namespace Sitecore.Support.Resources.Media
 {
     public class MediaProvider : Sitecore.Resources.Media.MediaProvider
     {
-        private MediaConfig config;
-        private MediaCache cache = new MediaCache();
-        private MediaCreator creator = new MediaCreator();
-        private ImageEffects effects = new ImageEffects();
-        private MimeResolver mimeResolver = new MimeResolver();
+        [Obsolete]
+        public MediaProvider() : base(ServiceLocator.ServiceProvider.GetRequiredService<BaseFactory>())
+        {
+        }
 
-        public override string GetMediaUrl(MediaItem item, MediaUrlOptions options)
+        public MediaProvider(BaseFactory factory) : base(factory)
+        {
+        }
+
+        [NotNull]
+        public override string GetMediaUrl([NotNull] MediaItem item, [NotNull] MediaUrlOptions options)
         {
             Assert.ArgumentNotNull(item, "item");
             Assert.ArgumentNotNull(options, "options");
+
             Assert.IsTrue(this.Config.MediaPrefixes[0].Length > 0, "media prefixes are not configured properly.");
-            string text = this.MediaLinkPrefix;
+            string prefix = this.MediaLinkPrefix;
+
             if (options.AbsolutePath)
             {
-                text = options.VirtualFolder + text;
+                prefix = options.VirtualFolder + prefix;
             }
-            else if (text.StartsWith("/", StringComparison.InvariantCulture))
+            else if (prefix.StartsWith("/", StringComparison.InvariantCulture))
             {
-                text = StringUtil.Mid(text, 1);
+                prefix = StringUtil.Mid(prefix, 1);
             }
-            text = MainUtil.EncodePath(text, '/');
+
+            prefix = MainUtil.EncodePath(prefix, '/');
+
             if (options.AlwaysIncludeServerUrl)
             {
-                text = FileUtil.MakePath(string.IsNullOrEmpty(options.MediaLinkServerUrl) ? GetServerUrlElement(Sitecore.Context.Site.SiteInfo, options) : options.MediaLinkServerUrl, text, '/');
+                prefix = FileUtil.MakePath(string.IsNullOrEmpty(options.MediaLinkServerUrl) ? GetServerUrlElement(Context.Site.SiteInfo, options) : options.MediaLinkServerUrl, prefix, '/');
             }
-            string text2 = StringUtil.GetString(new string[]
+
+            string extension = StringUtil.GetString(options.RequestExtension, item.Extension, Constants.AshxExtension);
+
+            extension = StringUtil.EnsurePrefix('.', extension);
+
+            string parameters = options.ToString();
+
+            if (parameters.Length > 0)
             {
-        options.RequestExtension,
-        item.Extension,
-        "ashx"
-            });
-            text2 = StringUtil.EnsurePrefix('.', text2);
-            string text3 = options.ToString();
-            if (text3.Length > 0)
-            {
-                text2 = text2 + "?" + text3;
+                extension += "?" + parameters;
             }
-            string text4 = "/sitecore/media library/";
-            string path = item.InnerItem.Paths.Path;
-            string text5;
-            if (options.UseItemPath && path.StartsWith(text4, StringComparison.OrdinalIgnoreCase))
+
+            string mediaRoot = Constants.MediaLibraryPath + "/";
+            string itemPath = item.InnerItem.Paths.Path;
+
+            string path;
+
+            if (options.UseItemPath
+                && itemPath.StartsWith(mediaRoot, StringComparison.OrdinalIgnoreCase))
             {
-                text5 = StringUtil.Mid(path, text4.Length);
+                path = StringUtil.Mid(itemPath, mediaRoot.Length);
             }
             else
             {
-                text5 = item.ID.ToShortID().ToString();
+                path = item.ID.ToShortID().ToString();
             }
-            text5 = MainUtil.EncodePath(text5, '/');
-            text5 = text + text5 + (options.IncludeExtension ? text2 : string.Empty);
-            if (!options.LowercaseUrls)
-            {
-                return text5;
-            }
-            return text5.ToLowerInvariant();
+
+            path = MainUtil.EncodePath(path, '/');
+            path = prefix + path + (options.IncludeExtension ? extension : string.Empty);
+            return options.LowercaseUrls ? path.ToLowerInvariant() : path;
         }
 
         protected virtual string GetServerUrlElement(SiteInfo siteInfo, MediaUrlOptions options)
@@ -81,13 +92,13 @@ namespace Sitecore.Support.Resources.Media
             }
             string text = (!string.IsNullOrEmpty(siteInfo.HostName) && !string.IsNullOrEmpty(hostName) && siteInfo.Matches(hostName)) ? hostName : StringUtil.GetString(new string[]
             {
-        this.GetTargetHostName(siteInfo),
-        hostName
+                this.GetTargetHostName(siteInfo),
+                hostName
             });
             string @string = StringUtil.GetString(new string[]
             {
-        siteInfo.Scheme,
-        WebUtil.GetScheme()
+                siteInfo.Scheme,
+                WebUtil.GetScheme()
             });
             int num = MainUtil.GetInt(siteInfo.Port, WebUtil.GetPort());
             int port = WebUtil.GetPort();
@@ -132,8 +143,8 @@ namespace Sitecore.Support.Resources.Media
             string hostName = siteInfo.HostName;
             if (hostName.IndexOfAny(new char[]
             {
-        '*',
-        '|'
+                '*',
+                '|'
             }) < 0)
             {
                 return hostName;
