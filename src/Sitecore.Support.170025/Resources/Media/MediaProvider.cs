@@ -55,6 +55,12 @@ namespace Sitecore.Support.Resources.Media
 
             string parameters = options.ToString();
 
+            if (options.AlwaysAppendRevision)
+            {
+              var rev = Guid.Parse(item.InnerItem.Statistics.Revision).ToString("N");
+              parameters = string.IsNullOrEmpty(parameters) ? "rev=" + rev : parameters + "&rev=" + rev;
+            }
+
             if (parameters.Length > 0)
             {
                 extension += "?" + parameters;
